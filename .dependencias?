@@ -1,0 +1,1 @@
+pip install fastapi uvicorn[standard] peewee pyzmq pymupdf scikit-learn python-multipart itsdangerous passlib[bcrypt] httpx
