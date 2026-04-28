@@ -221,3 +221,4 @@ __marimo__/
 #AAAa
 .fases.txt
 .estructura.txt
+*.db*

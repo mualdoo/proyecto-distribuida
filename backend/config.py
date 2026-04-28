@@ -20,6 +20,12 @@ ZMQ_BROADCAST_PORT: int = 5555   # PUB/SUB  — mensajes a todos los nodos
 ZMQ_DIRECT_PORT: int    = 5556   # DEALER/ROUTER — mensajes punto a punto
 SPACE_QUERY_TIMEOUT_MS: int = 3000  # tiempo máximo esperando respuestas de espacio
 
+# ── Red / UDP Broadcast ───────────────────────────────────────────────────────
+
+UDP_DISCOVERY_PORT: int = 5554        # mismo en todos los nodos
+UDP_DISCOVERY_MSG:  str = "SCIENTIFIC_DOCS_DISCOVERY"
+UDP_DISCOVERY_TIMEOUT: float = 2.0   # segundos esperando respuestas
+
 # ── Almacenamiento ────────────────────────────────────────────────────────────
 BASE_DIR   = Path(__file__).resolve().parent
 STORAGE_DIR: Path = BASE_DIR / "storage"

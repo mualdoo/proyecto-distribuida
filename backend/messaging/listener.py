@@ -66,17 +66,29 @@ def _dispatch(raw: str) -> None:
 
 # ── Hilo SUB — escucha broadcasts ─────────────────────────────────────────────
 
+# Variable global para acceder al socket SUB desde fuera del hilo
+_sub_sock: zmq.Socket | None = None
+
+
 def _sub_loop(context: zmq.Context, known_ips: list[str]) -> None:
-    sock = context.socket(zmq.SUB)
-    sock.setsockopt_string(zmq.SUBSCRIBE, "")  # recibir todo
+    global _sub_sock
+    _sub_sock = context.socket(zmq.SUB)
+    _sub_sock.setsockopt_string(zmq.SUBSCRIBE, "")
     for ip in known_ips:
-        sock.connect(f"tcp://{ip}:{ZMQ_BROADCAST_PORT}")
+        _sub_sock.connect(f"tcp://{ip}:{ZMQ_BROADCAST_PORT}")
     while True:
         try:
-            raw = sock.recv_string()
+            raw = _sub_sock.recv_string()
             _dispatch(raw)
         except zmq.ZMQError:
             break
+
+
+def subscribe_to(ip: str) -> None:
+    """Conecta el SUB a un nodo recién descubierto en tiempo de ejecución."""
+    if _sub_sock is not None:
+        _sub_sock.connect(f"tcp://{ip}:{ZMQ_BROADCAST_PORT}")
+        print(f"[listener] Suscrito a nuevo nodo en {ip}")
 
 
 # ── Hilo ROUTER — escucha mensajes directos ───────────────────────────────────
@@ -96,16 +108,6 @@ def _router_loop(context: zmq.Context) -> None:
 
 
 # ── API pública ───────────────────────────────────────────────────────────────
-
-def subscribe_to(ip: str, context: zmq.Context) -> None:
-    """Conecta el SUB a un nuevo nodo descubierto en tiempo de ejecución."""
-    # Se llama desde handlers.on_node_announce
-    # Cada hilo SUB necesita reconectarse — solución simple: el nodo
-    # guarda las IPs y reconecta al arrancar. Para conexiones dinámicas
-    # se usa un socket SUB compartido accesible aquí.
-    # Implementación completa en node.py donde el socket es accesible.
-    pass
-
 
 def start(context: zmq.Context, known_ips: list[str]) -> None:
     """Arranca los hilos de escucha en background."""

@@ -1,24 +1,20 @@
-"""
-Ciclo de vida del nodo ZeroMQ.
-  - Al arrancar: anuncia presencia y se suscribe a los nodos conocidos
-  - En ejecución: escucha mensajes en background
-  - Al cerrar: anuncia despedida (graceful shutdown)
-"""
-
 import zmq
 import atexit
 import signal
 import sys
+from datetime import datetime, timezone
+
 from db.models import Nodo
 from services.storage import obtener_espacio_disponible
 from messaging.broadcaster import publish, close as close_pub
 from messaging.listener import start as start_listeners
+from messaging.discovery import descubrir_nodos, start_servidor
 from messaging.protocol import make_node_announce, make_node_goodbye, make_sync_request
-from config import NODE_ID, NODE_IP
+from config import NODE_ID, NODE_IP, BASE_DIR
 
 
 def _get_known_ips() -> list[str]:
-    """IPs de los nodos activos ya registrados en la DB local."""
+    """IPs de nodos activos ya en la DB local (reconexiones)."""
     return [
         n.ip for n in Nodo.select().where(
             (Nodo.activo == True) & (Nodo.id != NODE_ID)
@@ -27,7 +23,6 @@ def _get_known_ips() -> list[str]:
 
 
 def _on_shutdown(*_) -> None:
-    """Envía NODE_GOODBYE y cierra sockets limpiamente."""
     print("[node] Enviando NODE_GOODBYE...")
     publish(make_node_goodbye())
     close_pub()
@@ -36,24 +31,64 @@ def _on_shutdown(*_) -> None:
 
 def start() -> None:
     context = zmq.Context.instance()
-    known_ips = _get_known_ips()
-    start_listeners(context, known_ips)
 
-    # Pedir sincronización a un nodo activo antes de anunciarse
-    # Así tenemos la DB actualizada antes de que la red nos conozca
-    nodos_activos = list(Nodo.select().where(
-        (Nodo.activo == True) & (Nodo.id != NODE_ID)
-    ))
-    if nodos_activos:
+    # 1. Arrancar servidor UDP para responder a futuros nodos
+    start_servidor()
+
+    # 2. Descubrir nodos activos en la red ahora mismo
+    nodos_descubiertos = descubrir_nodos()
+
+    # 3. Combinar con nodos conocidos en DB (por si es una reconexión)
+    ips_db          = set(_get_known_ips())
+    ips_descubiertas = {n["ip"] for n in nodos_descubiertos}
+    todas_las_ips   = list(ips_db | ips_descubiertas)
+
+    # 4. Registrar nodos descubiertos en la DB local
+    for nodo in nodos_descubiertos:
+        Nodo.insert(
+            id=nodo["node_id"],
+            ip=nodo["ip"],
+            espacio_disponible=0,  # se actualizará con NODE_ANNOUNCE
+            activo=True,
+            ultima_vez_visto=datetime.now(timezone.utc),
+        ).on_conflict(
+            conflict_target=[Nodo.id],
+            update={
+                Nodo.ip:     nodo["ip"],
+                Nodo.activo: True,
+                Nodo.ultima_vez_visto: datetime.now(timezone.utc),
+            }
+        ).execute()
+
+    # 5. Registrarse a sí mismo en la DB local
+    Nodo.insert(
+        id=NODE_ID,
+        ip=NODE_IP,
+        espacio_disponible=obtener_espacio_disponible(),
+        activo=True,
+        ultima_vez_visto=datetime.now(timezone.utc),
+    ).on_conflict(
+        conflict_target=[Nodo.id],
+        update={
+            Nodo.ip:                 NODE_IP,
+            Nodo.espacio_disponible: obtener_espacio_disponible(),
+            Nodo.activo:             True,
+            Nodo.ultima_vez_visto:   datetime.now(timezone.utc),
+        }
+    ).execute()
+
+    # 6. Arrancar listeners con todas las IPs conocidas
+    start_listeners(context, todas_las_ips)
+
+    # 7. Pedir sincronización a un nodo activo si los hay
+    if nodos_descubiertos:
         import time
-        nodo_sync = nodos_activos[0]
-        publish(make_sync_request(nodo_sync.id))
-        # Dar tiempo a recibir la respuesta antes de continuar
+        nodo_sync = nodos_descubiertos[0]
+        publish(make_sync_request(nodo_sync["node_id"]))
         time.sleep(2)
 
-    # Ahora sí anunciarse con datos ya actualizados
-    espacio = obtener_espacio_disponible()
-    publish(make_node_announce(NODE_IP, espacio))
+    # 8. Anunciarse a la red
+    publish(make_node_announce(NODE_IP, obtener_espacio_disponible()))
 
     atexit.register(_on_shutdown)
     signal.signal(signal.SIGTERM, _on_shutdown)

@@ -41,6 +41,10 @@ def on_node_announce(payload: dict, sender_node_id: str) -> None:
         }
     ).execute()
 
+    # Suscribirse al nuevo nodo para recibir sus futuros mensajes
+    from messaging.listener import subscribe_to
+    subscribe_to(payload["ip"])
+
 
 # ── NODE_GOODBYE ──────────────────────────────────────────────────────────────
 
