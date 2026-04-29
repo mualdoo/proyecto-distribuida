@@ -94,6 +94,19 @@ def start() -> None:
     # 6. Arrancar listeners con todas las IPs conocidas
     start_listeners(context, todas_las_ips)
 
+    # Presentarse directamente a cada nodo descubierto vía HTTP
+    for nodo in nodos_descubiertos:
+        try:
+            import httpx
+            httpx.post(
+                f"http://{nodo['ip']}:8000/nodes/introduce",
+                json={"node_id": NODE_ID, "ip": NODE_IP},
+                timeout=5,
+            )
+            print(f"[node] Introducción enviada a {nodo['ip']}")
+        except Exception as e:
+            print(f"[node] No se pudo introducir a {nodo['ip']}: {e}")
+
     # 7. Pedir sincronización a un nodo activo si los hay
     if nodos_descubiertos:
         import time
