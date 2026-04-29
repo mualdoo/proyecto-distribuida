@@ -46,18 +46,18 @@ def start() -> None:
     # 4. Registrar nodos descubiertos con su espacio real
     import httpx, asyncio
 
-    async def _fetch_espacio(ip: str) -> float:
+    def _fetch_espacio(ip: str) -> float:
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                r = await client.get(f"http://{ip}:8000/nodes/info")
-                if r.status_code == 200:
-                    return r.json().get("espacio_disponible", 0)
+            import httpx
+            r = httpx.get(f"http://{ip}:8000/nodes/info", timeout=5)
+            if r.status_code == 200:
+                return r.json().get("espacio_disponible", 0)
         except Exception:
             pass
         return 0
 
     for nodo in nodos_descubiertos:
-        espacio = asyncio.run(_fetch_espacio(nodo["ip"]))
+        espacio = _fetch_espacio(nodo["ip"])
         Nodo.insert(
             id=nodo["node_id"],
             ip=nodo["ip"],
