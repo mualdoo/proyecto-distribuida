@@ -25,7 +25,6 @@ _space_events:    dict[str, asyncio.Event] = {}
 # ── NODE_ANNOUNCE ─────────────────────────────────────────────────────────────
 
 def on_node_announce(payload: dict, sender_node_id: str) -> None:
-    """Registra o actualiza el nodo en la DB local."""
     Nodo.insert(
         id=sender_node_id,
         ip=payload["ip"],

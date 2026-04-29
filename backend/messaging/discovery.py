@@ -71,6 +71,7 @@ def descubrir_nodos() -> list[dict]:
     visto = set()
 
     try:
+        print('holaaa?')
         sock.sendto(
             UDP_DISCOVERY_MSG.encode("utf-8"),
             ("<broadcast>", UDP_DISCOVERY_PORT)
