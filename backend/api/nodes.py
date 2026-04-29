@@ -28,7 +28,7 @@ def introduce(datos: NodoInfoSchema):
     Nos suscribimos a él y le respondemos con nuestro NODE_ANNOUNCE
     para que nos agregue a su DB.
     """
-    from db.models import Nodo
+    from backend.db.models import Nodo
     from datetime import datetime, timezone
 
     # Registrarlo en nuestra DB
