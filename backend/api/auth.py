@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
-from db.models import Usuario
-from messaging.broadcaster import publish
-from messaging.protocol import make_user_registered
-from config import SECRET_KEY, SESSION_MAX_AGE, ROLE_USER, ROLE_ADMIN
+from backend.db.models import Usuario
+from backend.messaging.broadcaster import publish
+from backend.messaging.protocol import make_user_registered
+from backend.config import SECRET_KEY, SESSION_MAX_AGE, ROLE_USER, ROLE_ADMIN
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

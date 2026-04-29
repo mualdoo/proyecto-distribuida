@@ -4,7 +4,8 @@ Un solo socket PUB por nodo — todos los demás escuchan con SUB.
 """
 
 import zmq
-from config import ZMQ_BROADCAST_PORT
+
+from backend.config import ZMQ_BROADCAST_PORT
 
 _context  = zmq.Context.instance()
 _pub_sock = _context.socket(zmq.PUB)

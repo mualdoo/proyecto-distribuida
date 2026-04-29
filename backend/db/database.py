@@ -1,5 +1,6 @@
 from peewee import SqliteDatabase
-from config import DATABASE_PATH
+
+from backend.config import DATABASE_PATH
 
 DATABASE_PATH.parent.mkdir(exist_ok=True)
 

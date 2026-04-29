@@ -13,7 +13,8 @@ Estructura base:
 
 import json
 import uuid
-from config import NODE_ID
+
+from backend.config import NODE_ID
 
 # ── Tipos de mensaje ──────────────────────────────────────────────────────────
 MSG_NODE_ANNOUNCE   = "NODE_ANNOUNCE"    # broadcast — nodo nuevo se anuncia

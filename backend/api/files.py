@@ -7,22 +7,22 @@ import uuid
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from fastapi.responses import Response
 
-from db.models import Archivo, UbicacionArchivo, Nodo
-from services.classifier import procesar_pdf
-from services.storage import (
+from backend.db.models import Archivo, UbicacionArchivo, Nodo
+from backend.services.classifier import procesar_pdf
+from backend.services.storage import (
     guardar_pdf, eliminar_pdf, leer_pdf,
     hay_espacio_para, obtener_espacio_disponible,
 )
-from services.replication import (
+from backend.services.replication import (
     elegir_nodos_destino, enviar_pdf_a_nodo, registrar_ubicacion
 )
-from messaging.broadcaster import publish
-from messaging.protocol import (
+from backend.messaging.broadcaster import publish
+from backend.messaging.protocol import (
     make_file_stored, make_space_query
 )
-from messaging.handlers import get_space_responses, clear_space_responses
-from api.auth import get_usuario_actual, require_admin
-from config import NODE_ID, SPACE_QUERY_TIMEOUT_MS
+from backend.messaging.handlers import get_space_responses, clear_space_responses
+from backend.api.auth import get_usuario_actual, require_admin
+from backend.config import NODE_ID, SPACE_QUERY_TIMEOUT_MS
 
 import asyncio
 router = APIRouter(prefix="/files", tags=["files"])
@@ -83,22 +83,35 @@ async def upload(
         nodo_primario = {"node_id": NODE_ID, "espacio": obtener_espacio_disponible()}
         nodo_replica  = {"node_id": NODE_ID, "espacio": obtener_espacio_disponible()}
 
+    print('nodos:', nodo_primario, nodo_replica)
+
     # Guardar en nodo primario
     nombre_archivo = file.filename
     if nodo_primario["node_id"] == NODE_ID:
         guardar_pdf(pdf_bytes, nombre_archivo, usuario.nombre)
     else:
-        nodo = Nodo.get(Nodo.id == nodo_primario["node_id"])
+        try:
+            nodo = Nodo.get(Nodo.id == nodo_primario["node_id"])
+        except Nodo.DoesNotExist:
+            raise HTTPException(status_code=503, detail="Nodo primario no encontrado en DB.")
+        print(usuario.nombre)
         ok = await enviar_pdf_a_nodo(nodo.ip, pdf_bytes, nombre_archivo, usuario.nombre)
         if not ok:
             raise HTTPException(status_code=503, detail="No se pudo guardar en el nodo primario.")
 
-    # Guardar réplica
-    if nodo_replica["node_id"] == NODE_ID:
+    # Guardar réplica — solo si es un nodo distinto al primario
+    if nodo_replica["node_id"] == nodo_primario["node_id"]:
+        # Un solo nodo disponible — primario y réplica son el mismo, ya está guardado
+        pass
+    elif nodo_replica["node_id"] == NODE_ID:
         guardar_pdf(pdf_bytes, nombre_archivo, usuario.nombre)
     else:
-        nodo = Nodo.get(Nodo.id == nodo_replica["node_id"])
-        await enviar_pdf_a_nodo(nodo.ip, pdf_bytes, nombre_archivo, usuario.nombre)
+        try:
+            nodo = Nodo.get(Nodo.id == nodo_replica["node_id"])
+        except Nodo.DoesNotExist:
+            pass  # Si falla la réplica no es crítico, el primario ya está guardado
+        else:
+            await enviar_pdf_a_nodo(nodo.ip, pdf_bytes, nombre_archivo, usuario.nombre)
 
     # Registrar en DB local
     archivo = Archivo.create(
@@ -216,7 +229,7 @@ def eliminar(archivo_id: int, usuario=Depends(get_usuario_actual)):
 
 def _eliminar_archivo_completo(archivo: Archivo, nombre_usuario: str) -> None:
     """Elimina el PDF de todos los nodos donde esté y borra el registro de DB."""
-    from messaging.protocol import build
+    from backend.messaging.protocol import build
     nodos_activos = {n.id: n for n in Nodo.select().where(Nodo.activo == True)}
 
     for ubicacion in archivo.ubicaciones:
@@ -228,13 +241,13 @@ def _eliminar_archivo_completo(archivo: Archivo, nombre_usuario: str) -> None:
             async def _delete_remote():
                 async with httpx.AsyncClient(timeout=10) as client:
                     await client.delete(
-                        f"http://{nodo.ip}:8000/internal/delete",
+                        f"http://{nodo.ip}:8000/files/internal/delete",
                         params={"nombre": archivo.nombre, "usuario": nombre_usuario}
                     )
             asyncio.get_event_loop().run_until_complete(_delete_remote())
 
     # Anunciar eliminación a toda la red
-    from messaging.protocol import MSG_FILE_STORED
+    from backend.messaging.protocol import MSG_FILE_STORED
     publish(build("FILE_DELETED", {
         "hash_archivo": archivo.hash_archivo,
         "propietario":  nombre_usuario,
@@ -247,10 +260,11 @@ def _eliminar_archivo_completo(archivo: Archivo, nombre_usuario: str) -> None:
 
 @router.post("/internal/upload")
 async def internal_upload(
+    usuario: str,
     file: UploadFile = File(...),
-    usuario: str = "",
 ):
     """Recibe un PDF de otro nodo para almacenarlo localmente."""
+    print(f"[internal_upload] archivo={file.filename} usuario='{usuario}'")
     pdf_bytes = await file.read()
     guardar_pdf(pdf_bytes, file.filename, usuario)
     return {"ok": True}

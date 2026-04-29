@@ -3,8 +3,9 @@ from peewee import (
     ForeignKeyField, DateTimeField, BooleanField
 )
 from datetime import datetime, timezone
-from db.database import db
-from config import ROLE_USER
+
+from backend.db.database import db
+from backend.config import ROLE_USER
 
 
 class BaseModel(Model):

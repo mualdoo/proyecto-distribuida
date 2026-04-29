@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from config import STORAGE_DIR, NODE_ID, STORAGE_LIMIT_BYTES
+from backend.config import STORAGE_DIR, NODE_ID, STORAGE_LIMIT_BYTES
 
 
 # ── Rutas ─────────────────────────────────────────────────────────────────────

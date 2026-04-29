@@ -4,13 +4,13 @@ import signal
 import sys
 from datetime import datetime, timezone
 
-from db.models import Nodo
-from services.storage import obtener_espacio_disponible
-from messaging.broadcaster import publish, close as close_pub
-from messaging.listener import start as start_listeners
-from messaging.discovery import descubrir_nodos, start_servidor
-from messaging.protocol import make_node_announce, make_node_goodbye, make_sync_request
-from config import NODE_ID, NODE_IP, BASE_DIR
+from backend.db.models import Nodo
+from backend.services.storage import obtener_espacio_disponible
+from backend.messaging.broadcaster import publish, close as close_pub
+from backend.messaging.listener import start as start_listeners
+from backend.messaging.discovery import descubrir_nodos, start_servidor
+from backend.messaging.protocol import make_node_announce, make_node_goodbye, make_sync_request
+from backend.config import NODE_ID, NODE_IP, BASE_DIR
 
 
 def _get_known_ips() -> list[str]:
@@ -43,20 +43,34 @@ def start() -> None:
     ips_descubiertas = {n["ip"] for n in nodos_descubiertos}
     todas_las_ips   = list(ips_db | ips_descubiertas)
 
-    # 4. Registrar nodos descubiertos en la DB local
+    # 4. Registrar nodos descubiertos con su espacio real
+    import httpx, asyncio
+
+    def _fetch_espacio(ip: str) -> float:
+        try:
+            import httpx
+            r = httpx.get(f"http://{ip}:8000/nodes/info", timeout=5)
+            if r.status_code == 200:
+                return r.json().get("espacio_disponible", 0)
+        except Exception:
+            pass
+        return 0
+
     for nodo in nodos_descubiertos:
+        espacio = _fetch_espacio(nodo["ip"])
         Nodo.insert(
             id=nodo["node_id"],
             ip=nodo["ip"],
-            espacio_disponible=0,  # se actualizará con NODE_ANNOUNCE
+            espacio_disponible=espacio,
             activo=True,
             ultima_vez_visto=datetime.now(timezone.utc),
         ).on_conflict(
             conflict_target=[Nodo.id],
             update={
-                Nodo.ip:     nodo["ip"],
-                Nodo.activo: True,
-                Nodo.ultima_vez_visto: datetime.now(timezone.utc),
+                Nodo.ip:                 nodo["ip"],
+                Nodo.espacio_disponible: espacio,
+                Nodo.activo:             True,
+                Nodo.ultima_vez_visto:   datetime.now(timezone.utc),
             }
         ).execute()
 
@@ -79,6 +93,19 @@ def start() -> None:
 
     # 6. Arrancar listeners con todas las IPs conocidas
     start_listeners(context, todas_las_ips)
+
+    # Presentarse directamente a cada nodo descubierto vía HTTP
+    for nodo in nodos_descubiertos:
+        try:
+            import httpx
+            httpx.post(
+                f"http://{nodo['ip']}:8000/nodes/introduce",
+                json={"node_id": NODE_ID, "ip": NODE_IP},
+                timeout=5,
+            )
+            print(f"[node] Introducción enviada a {nodo['ip']}")
+        except Exception as e:
+            print(f"[node] No se pudo introducir a {nodo['ip']}: {e}")
 
     # 7. Pedir sincronización a un nodo activo si los hay
     if nodos_descubiertos:
