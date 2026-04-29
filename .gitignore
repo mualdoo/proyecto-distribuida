@@ -222,3 +222,5 @@ __marimo__/
 .fases.txt
 .estructura.txt
 *.db*
+
+storage/*/
