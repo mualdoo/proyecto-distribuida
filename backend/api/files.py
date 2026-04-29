@@ -94,6 +94,7 @@ async def upload(
             nodo = Nodo.get(Nodo.id == nodo_primario["node_id"])
         except Nodo.DoesNotExist:
             raise HTTPException(status_code=503, detail="Nodo primario no encontrado en DB.")
+        print(usuario.nombre)
         ok = await enviar_pdf_a_nodo(nodo.ip, pdf_bytes, nombre_archivo, usuario.nombre)
         if not ok:
             raise HTTPException(status_code=503, detail="No se pudo guardar en el nodo primario.")
@@ -259,11 +260,11 @@ def _eliminar_archivo_completo(archivo: Archivo, nombre_usuario: str) -> None:
 
 @router.post("/internal/upload")
 async def internal_upload(
+    usuario: str,
     file: UploadFile = File(...),
-    usuario: str = "",
 ):
     """Recibe un PDF de otro nodo para almacenarlo localmente."""
-    print('llwga?????')
+    print(f"[internal_upload] archivo={file.filename} usuario='{usuario}'")
     pdf_bytes = await file.read()
     guardar_pdf(pdf_bytes, file.filename, usuario)
     return {"ok": True}

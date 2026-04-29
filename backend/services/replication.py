@@ -49,9 +49,10 @@ async def enviar_pdf_a_nodo(nodo_ip: str, pdf_bytes: bytes,
     url = f"http://{nodo_ip}:8000/files/internal/upload"
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(url, files={
-                "file": (nombre_archivo, pdf_bytes, "application/pdf")
-            }, data={"usuario": usuario})
+            response = await client.post(
+                url, 
+                files={"file": (nombre_archivo, pdf_bytes, "application/pdf")},
+                params={"usuario": usuario})
         return response.status_code == 200
     except Exception:
         return False
