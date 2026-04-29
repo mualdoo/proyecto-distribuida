@@ -15,9 +15,9 @@ NOTA: Las funciones que dependen de messaging se completan
 en la Fase 4, aquí dejamos los stubs con su firma definida.
 """
 
-from db.models import Archivo, UbicacionArchivo, Nodo
-from services.storage import guardar_pdf, eliminar_pdf, leer_pdf, obtener_espacio_disponible
-from config import NODE_ID
+from backend.db.models import Archivo, UbicacionArchivo, Nodo
+from backend.services.storage import guardar_pdf, eliminar_pdf, leer_pdf, obtener_espacio_disponible
+from backend.config import NODE_ID
 
 
 # ── Selección de nodos destino ────────────────────────────────────────────────

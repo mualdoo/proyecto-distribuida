@@ -13,7 +13,8 @@ El hilo servidor corre siempre para responder a futuros nodos que se unan.
 import json
 import socket
 import threading
-from config import (
+
+from backend.config import (
     NODE_ID, NODE_IP,
     UDP_DISCOVERY_PORT,
     UDP_DISCOVERY_MSG,

@@ -3,8 +3,9 @@ Endpoints para consultar el estado de los nodos (visible para admin).
 """
 
 from fastapi import APIRouter, Depends
-from db.models import Nodo
-from api.auth import require_admin
+
+from backend.db.models import Nodo
+from backend.api.auth import require_admin
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
 

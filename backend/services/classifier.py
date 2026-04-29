@@ -2,7 +2,7 @@ import pickle
 import hashlib
 import fitz  # PyMuPDF
 from pathlib import Path
-from config import MODEL_PATH, ENCODER_PATH
+from backend.config import MODEL_PATH, ENCODER_PATH
 
 
 # ── Carga del modelo (una sola vez al importar) ───────────────────────────────

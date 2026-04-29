@@ -7,22 +7,22 @@ import uuid
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from fastapi.responses import Response
 
-from db.models import Archivo, UbicacionArchivo, Nodo
-from services.classifier import procesar_pdf
-from services.storage import (
+from backend.db.models import Archivo, UbicacionArchivo, Nodo
+from backend.services.classifier import procesar_pdf
+from backend.services.storage import (
     guardar_pdf, eliminar_pdf, leer_pdf,
     hay_espacio_para, obtener_espacio_disponible,
 )
-from services.replication import (
+from backend.services.replication import (
     elegir_nodos_destino, enviar_pdf_a_nodo, registrar_ubicacion
 )
-from messaging.broadcaster import publish
-from messaging.protocol import (
+from backend.messaging.broadcaster import publish
+from backend.messaging.protocol import (
     make_file_stored, make_space_query
 )
-from messaging.handlers import get_space_responses, clear_space_responses
-from api.auth import get_usuario_actual, require_admin
-from config import NODE_ID, SPACE_QUERY_TIMEOUT_MS
+from backend.messaging.handlers import get_space_responses, clear_space_responses
+from backend.api.auth import get_usuario_actual, require_admin
+from backend.config import NODE_ID, SPACE_QUERY_TIMEOUT_MS
 
 import asyncio
 router = APIRouter(prefix="/files", tags=["files"])
@@ -216,7 +216,7 @@ def eliminar(archivo_id: int, usuario=Depends(get_usuario_actual)):
 
 def _eliminar_archivo_completo(archivo: Archivo, nombre_usuario: str) -> None:
     """Elimina el PDF de todos los nodos donde esté y borra el registro de DB."""
-    from messaging.protocol import build
+    from backend.messaging.protocol import build
     nodos_activos = {n.id: n for n in Nodo.select().where(Nodo.activo == True)}
 
     for ubicacion in archivo.ubicaciones:
@@ -234,7 +234,7 @@ def _eliminar_archivo_completo(archivo: Archivo, nombre_usuario: str) -> None:
             asyncio.get_event_loop().run_until_complete(_delete_remote())
 
     # Anunciar eliminación a toda la red
-    from messaging.protocol import MSG_FILE_STORED
+    from backend.messaging.protocol import MSG_FILE_STORED
     publish(build("FILE_DELETED", {
         "hash_archivo": archivo.hash_archivo,
         "propietario":  nombre_usuario,

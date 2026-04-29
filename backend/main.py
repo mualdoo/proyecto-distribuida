@@ -6,14 +6,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from db.database import init_db
-from db.models import MODELS
-from messaging.node import start as start_node
-from api.auth  import router as auth_router
-from api.files import router as files_router
-from api.nodes import router as nodes_router
-from api.admin import router as admin_router
-from config import NODE_ID, NODE_IP, API_HOST, API_PORT
+from backend.db.database import init_db
+from backend.db.models import MODELS
+from backend.messaging.node import start as start_node
+from backend.api.auth  import router as auth_router
+from backend.api.files import router as files_router
+from backend.api.nodes import router as nodes_router
+from backend.api.admin import router as admin_router
+from backend.config import NODE_ID, NODE_IP, API_HOST, API_PORT
 
 
 @asynccontextmanager

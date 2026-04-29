@@ -3,9 +3,9 @@ Ejecutar una sola vez para crear el usuario admin inicial.
 Uso: python create_admin.py
 """
 
-from db.database import init_db
-from db.models import MODELS, Usuario
-from config import ROLE_ADMIN
+from backend.db.database import init_db
+from backend.db.models import MODELS, Usuario
+from backend.config import ROLE_ADMIN
 from passlib.context import CryptContext
 
 init_db(MODELS)

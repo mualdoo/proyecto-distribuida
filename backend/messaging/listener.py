@@ -13,9 +13,10 @@ Anti-bucle:
 import zmq
 import threading
 from collections import OrderedDict
-from config import NODE_ID, ZMQ_BROADCAST_PORT, ZMQ_DIRECT_PORT
-from messaging.protocol import parse
-import messaging.handlers as handlers
+
+from backend.config import NODE_ID, ZMQ_BROADCAST_PORT, ZMQ_DIRECT_PORT
+from backend.messaging.protocol import parse
+import backend.messaging.handlers as handlers
 
 # ── Caché de IDs vistos (máximo 1000 entradas) ───────────────────────────────
 _seen_ids: OrderedDict[str, bool] = OrderedDict()

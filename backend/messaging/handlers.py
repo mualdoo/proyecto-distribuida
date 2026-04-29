@@ -9,10 +9,11 @@ Esto elimina cualquier posibilidad de bucle.
 
 import asyncio
 from datetime import datetime, timezone
-from db.models import Nodo, Usuario, Archivo, UbicacionArchivo
-from services.storage import obtener_espacio_disponible
-from messaging.protocol import make_space_response, make_sync_response
-from config import NODE_ID, ZMQ_DIRECT_PORT
+
+from backend.db.models import Nodo, Usuario, Archivo, UbicacionArchivo
+from backend.services.storage import obtener_espacio_disponible
+from backend.messaging.protocol import make_space_response, make_sync_response
+from backend.config import NODE_ID, ZMQ_DIRECT_PORT
 
 # Registry de respuestas SPACE_RESPONSE pendientes
 # query_id -> list de respuestas recibidas
@@ -42,7 +43,7 @@ def on_node_announce(payload: dict, sender_node_id: str) -> None:
     ).execute()
 
     # Suscribirse al nuevo nodo para recibir sus futuros mensajes
-    from messaging.listener import subscribe_to
+    from backend.messaging.listener import subscribe_to
     subscribe_to(payload["ip"])
 
 
@@ -69,7 +70,7 @@ def on_node_goodbye(payload: dict, sender_node_id: str) -> None:
     if not _soy_responsable_de_rereplica():
         return
 
-    from services.replication import obtener_archivos_sin_replica
+    from backend.services.replication import obtener_archivos_sin_replica
     import threading
     huerfanos = obtener_archivos_sin_replica(sender_node_id)
 
@@ -84,9 +85,9 @@ def on_node_goodbye(payload: dict, sender_node_id: str) -> None:
 def _rereplicate_sync(huerfanos: list) -> None:
     """Wrapper síncrono para llamar código async desde un hilo normal."""
     import asyncio
-    from services.replication import rereplicate_archivo
-    from messaging.broadcaster import publish
-    from messaging.protocol import make_space_query
+    from backend.services.replication import rereplicate_archivo
+    from backend.messaging.broadcaster import publish
+    from backend.messaging.protocol import make_space_query
     import uuid
 
     query_id = str(uuid.uuid4())
@@ -94,7 +95,7 @@ def _rereplicate_sync(huerfanos: list) -> None:
 
     # Esperar respuestas brevemente
     import time
-    from config import SPACE_QUERY_TIMEOUT_MS
+    from backend.config import SPACE_QUERY_TIMEOUT_MS
     time.sleep(SPACE_QUERY_TIMEOUT_MS / 1000)
 
     respuestas = _space_responses.pop(query_id, [])
@@ -163,7 +164,7 @@ def on_file_deleted(payload: dict, sender_node_id: str) -> None:
     """
     Elimina el archivo del disco local y de la DB si este nodo lo tiene.
     """
-    from services.storage import eliminar_pdf
+    from backend.services.storage import eliminar_pdf
     try:
         archivo = Archivo.get(Archivo.hash_archivo == payload["hash_archivo"])
     except Archivo.DoesNotExist:
@@ -181,7 +182,7 @@ def on_space_query(payload: dict, sender_node_id: str) -> None:
     al nodo que preguntó, vía DEALER/ROUTER (punto a punto).
     """
     import zmq
-    from config import NODE_IP
+    from backend.config import NODE_IP
 
     query_id = payload["query_id"]
     espacio  = obtener_espacio_disponible()
@@ -312,7 +313,7 @@ def on_sync_response(payload: dict, sender_node_id: str) -> None:
     if payload.get("target_node_id") != NODE_ID:
         return
 
-    from services.storage import eliminar_pdf, leer_pdf
+    from backend.services.storage import eliminar_pdf, leer_pdf
     from datetime import datetime, timezone
 
     # 1. Sincronizar usuarios
@@ -406,8 +407,8 @@ def _solicitar_archivo(archivo, ubicaciones: list[dict]) -> None:
 
 def _fetch_archivo_sync(archivo, ubicaciones: list[dict]) -> None:
     import asyncio
-    from services.replication import enviar_pdf_a_nodo
-    from config import NODE_IP
+    from backend.services.replication import enviar_pdf_a_nodo
+    from backend.config import NODE_IP
 
     nodos_activos = {n.id: n for n in Nodo.select().where(Nodo.activo == True)}
 
@@ -429,7 +430,7 @@ def _fetch_archivo_sync(archivo, ubicaciones: list[dict]) -> None:
                     "usuario":  archivo.propietario.nombre,
                 })
                 if r.status_code == 200:
-                    from services.storage import guardar_pdf
+                    from backend.services.storage import guardar_pdf
                     guardar_pdf(r.content, archivo.nombre, archivo.propietario.nombre)
                     return True
             return False

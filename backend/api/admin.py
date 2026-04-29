@@ -7,12 +7,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from passlib.context import CryptContext
 
-from db.models import Usuario, Archivo
-from api.auth import require_admin
-from api.files import _eliminar_archivo_completo
-from config import ROLE_USER, ROLE_ADMIN
-from messaging.broadcaster import publish
-from messaging.protocol import make_user_registered
+from backend.db.models import Usuario, Archivo
+from backend.api.auth import require_admin
+from backend.api.files import _eliminar_archivo_completo
+from backend.config import ROLE_USER, ROLE_ADMIN
+from backend.messaging.broadcaster import publish
+from backend.messaging.protocol import make_user_registered
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
