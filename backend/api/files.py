@@ -83,6 +83,8 @@ async def upload(
         nodo_primario = {"node_id": NODE_ID, "espacio": obtener_espacio_disponible()}
         nodo_replica  = {"node_id": NODE_ID, "espacio": obtener_espacio_disponible()}
 
+    print('nodos:', nodo_primario, nodo_replica)
+
     # Guardar en nodo primario
     nombre_archivo = file.filename
     if nodo_primario["node_id"] == NODE_ID:
@@ -238,7 +240,7 @@ def _eliminar_archivo_completo(archivo: Archivo, nombre_usuario: str) -> None:
             async def _delete_remote():
                 async with httpx.AsyncClient(timeout=10) as client:
                     await client.delete(
-                        f"http://{nodo.ip}:8000/internal/delete",
+                        f"http://{nodo.ip}:8000/files/internal/delete",
                         params={"nombre": archivo.nombre, "usuario": nombre_usuario}
                     )
             asyncio.get_event_loop().run_until_complete(_delete_remote())
@@ -261,6 +263,7 @@ async def internal_upload(
     usuario: str = "",
 ):
     """Recibe un PDF de otro nodo para almacenarlo localmente."""
+    print('llwga?????')
     pdf_bytes = await file.read()
     guardar_pdf(pdf_bytes, file.filename, usuario)
     return {"ok": True}

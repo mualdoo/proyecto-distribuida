@@ -423,7 +423,7 @@ def _fetch_archivo_sync(archivo, ubicaciones: list[dict]) -> None:
         # Pedir el PDF vía HTTP al nodo fuente
         import httpx, asyncio
         async def fetch():
-            url = f"http://{nodo.ip}:8000/internal/download"
+            url = f"http://{nodo.ip}:8000/files/internal/download"
             async with httpx.AsyncClient(timeout=30) as client:
                 r = await client.get(url, params={
                     "nombre":   archivo.nombre,

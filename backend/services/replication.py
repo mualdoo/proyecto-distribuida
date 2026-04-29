@@ -46,7 +46,7 @@ async def enviar_pdf_a_nodo(nodo_ip: str, pdf_bytes: bytes,
     el endpoint /internal/upload esté definido en FastAPI.
     """
     import httpx
-    url = f"http://{nodo_ip}:8000/internal/upload"
+    url = f"http://{nodo_ip}:8000/files/internal/upload"
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(url, files={
