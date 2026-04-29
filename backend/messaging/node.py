@@ -43,20 +43,34 @@ def start() -> None:
     ips_descubiertas = {n["ip"] for n in nodos_descubiertos}
     todas_las_ips   = list(ips_db | ips_descubiertas)
 
-    # 4. Registrar nodos descubiertos en la DB local
+    # 4. Registrar nodos descubiertos con su espacio real
+    import httpx, asyncio
+
+    async def _fetch_espacio(ip: str) -> float:
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                r = await client.get(f"http://{ip}:8000/nodes/info")
+                if r.status_code == 200:
+                    return r.json().get("espacio_disponible", 0)
+        except Exception:
+            pass
+        return 0
+
     for nodo in nodos_descubiertos:
+        espacio = asyncio.run(_fetch_espacio(nodo["ip"]))
         Nodo.insert(
             id=nodo["node_id"],
             ip=nodo["ip"],
-            espacio_disponible=0,  # se actualizará con NODE_ANNOUNCE
+            espacio_disponible=espacio,
             activo=True,
             ultima_vez_visto=datetime.now(timezone.utc),
         ).on_conflict(
             conflict_target=[Nodo.id],
             update={
-                Nodo.ip:     nodo["ip"],
-                Nodo.activo: True,
-                Nodo.ultima_vez_visto: datetime.now(timezone.utc),
+                Nodo.ip:                 nodo["ip"],
+                Nodo.espacio_disponible: espacio,
+                Nodo.activo:             True,
+                Nodo.ultima_vez_visto:   datetime.now(timezone.utc),
             }
         ).execute()
 
