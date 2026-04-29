@@ -88,17 +88,27 @@ async def upload(
     if nodo_primario["node_id"] == NODE_ID:
         guardar_pdf(pdf_bytes, nombre_archivo, usuario.nombre)
     else:
-        nodo = Nodo.get(Nodo.id == nodo_primario["node_id"])
+        try:
+            nodo = Nodo.get(Nodo.id == nodo_primario["node_id"])
+        except Nodo.DoesNotExist:
+            raise HTTPException(status_code=503, detail="Nodo primario no encontrado en DB.")
         ok = await enviar_pdf_a_nodo(nodo.ip, pdf_bytes, nombre_archivo, usuario.nombre)
         if not ok:
             raise HTTPException(status_code=503, detail="No se pudo guardar en el nodo primario.")
 
-    # Guardar réplica
-    if nodo_replica["node_id"] == NODE_ID:
+    # Guardar réplica — solo si es un nodo distinto al primario
+    if nodo_replica["node_id"] == nodo_primario["node_id"]:
+        # Un solo nodo disponible — primario y réplica son el mismo, ya está guardado
+        pass
+    elif nodo_replica["node_id"] == NODE_ID:
         guardar_pdf(pdf_bytes, nombre_archivo, usuario.nombre)
     else:
-        nodo = Nodo.get(Nodo.id == nodo_replica["node_id"])
-        await enviar_pdf_a_nodo(nodo.ip, pdf_bytes, nombre_archivo, usuario.nombre)
+        try:
+            nodo = Nodo.get(Nodo.id == nodo_replica["node_id"])
+        except Nodo.DoesNotExist:
+            pass  # Si falla la réplica no es crítico, el primario ya está guardado
+        else:
+            await enviar_pdf_a_nodo(nodo.ip, pdf_bytes, nombre_archivo, usuario.nombre)
 
     # Registrar en DB local
     archivo = Archivo.create(

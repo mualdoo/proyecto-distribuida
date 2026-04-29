@@ -22,19 +22,16 @@ from backend.config import NODE_ID
 
 # ── Selección de nodos destino ────────────────────────────────────────────────
 
-def elegir_nodos_destino(respuestas_espacio: list[dict]) -> tuple[dict, dict]:
-    """
-    Recibe una lista de respuestas de los nodos con su espacio disponible:
-        [{"node_id": str, "espacio": float}, ...]
+def elegir_nodos_destino(respuestas: list[dict]) -> tuple[dict, dict]:
+    if not respuestas:
+        raise ValueError("No hay nodos disponibles.")
 
-    Retorna los dos nodos con más espacio como (primario, replica).
-    Lanza ValueError si hay menos de 2 nodos disponibles.
-    """
-    if len(respuestas_espacio) < 2:
-        raise ValueError("Se necesitan al menos 2 nodos activos para replicar.")
+    ordenados = sorted(respuestas, key=lambda n: n["espacio"], reverse=True)
 
-    ordenados = sorted(respuestas_espacio, key=lambda n: n["espacio"], reverse=True)
-    return ordenados[0], ordenados[1]
+    primario = ordenados[0]
+    replica  = ordenados[1] if len(ordenados) >= 2 else ordenados[0]
+
+    return primario, replica
 
 
 # ── Guardar en nodo remoto ────────────────────────────────────────────────────
